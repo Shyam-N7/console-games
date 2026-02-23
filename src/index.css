@@ -1,0 +1,1601 @@
+:root {
+  --nokia-bg: #c7f0d8;
+  --nokia-pixel: #43523d;
+  --nokia-shadow: #8fa89b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  justify-content: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  font-family: 'VT323', 'Press Start 2P', monospace;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* ====================== */
+/* NOKIA PHONE (Menu/Snake) */
+/* ====================== */
+.phone {
+  background: linear-gradient(180deg, #3a4a6b 0%, #2d3a52 100%);
+  border-radius: 30px 30px 50px 50px;
+  padding: 40px 20px 100px 20px;
+  box-shadow:
+    -5px 5px 15px rgba(0, 0, 0, 0.5),
+    inset 2px 2px 5px rgba(255, 255, 255, 0.2),
+    0 0 30px rgba(0, 100, 200, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 350px;
+  width: 100%;
+  position: relative;
+  transition: max-width 0.3s ease, padding 0.3s ease;
+}
+
+/* TABLET MODE FOR PACMAN */
+.phone.tablet-mode {
+  max-width: 600px;
+  padding: 40px 40px 100px 40px;
+}
+
+.phone.tablet-mode .screen {
+  aspect-ratio: 5/4;
+}
+
+.screen-container {
+  background-color: #666;
+  padding: 10px;
+  border-radius: 10px;
+  width: 100%;
+  box-shadow: inset 2px 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.screen {
+  background-color: var(--nokia-bg);
+  border: 2px solid var(--nokia-pixel);
+  width: 100%;
+  aspect-ratio: 4/3;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  image-rendering: pixelated;
+  box-shadow: inset 2px 2px 5px var(--nokia-shadow);
+}
+
+.scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ====================== */
+/* MARIO FULLSCREEN       */
+/* ====================== */
+.mario-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mario-canvas-fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ====================== */
+/* RALLY 3D FULLSCREEN    */
+/* ====================== */
+.rally-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.rally-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.rally-back-btn {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 8px 16px;
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  z-index: 100;
+}
+
+.rally-back-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* Rally Touch Controls */
+.rally-touch-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.rally-touch-left,
+.rally-touch-right {
+  pointer-events: auto;
+}
+
+.rally-touch-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.rally-touch-btn {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.rally-touch-btn:active {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0.95);
+}
+
+.rally-touch-btn.accel {
+  background: rgba(76, 175, 80, 0.4);
+  border-color: rgba(76, 175, 80, 0.6);
+}
+
+.rally-touch-btn.brake {
+  background: rgba(244, 67, 54, 0.4);
+  border-color: rgba(244, 67, 54, 0.6);
+}
+
+.rally-touch-btn.start {
+  width: auto;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  background: rgba(255, 193, 7, 0.4);
+  border-color: rgba(255, 193, 7, 0.6);
+}
+
+/* Touch Controls Overlay */
+.touch-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 30px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.touch-dpad,
+.touch-actions {
+  pointer-events: auto;
+}
+
+.touch-dpad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.touch-dpad-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.touch-center {
+  width: 50px;
+  height: 50px;
+  background: rgba(50, 50, 50, 0.5);
+  border-radius: 5px;
+}
+
+.touch-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(80, 80, 80, 0.8);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+  transition: all 0.1s;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0.4);
+  background: rgba(100, 100, 100, 0.9);
+}
+
+.touch-actions {
+  display: flex;
+  gap: 15px;
+  align-items: flex-end;
+  transform: rotate(-15deg);
+}
+
+.touch-a,
+.touch-b {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  font-size: 1.8rem;
+}
+
+.touch-a {
+  background: linear-gradient(180deg, #e63946 0%, #b52836 100%);
+}
+
+.touch-b {
+  background: linear-gradient(180deg, #e63946 0%, #b52836 100%);
+}
+
+/* Game HUD */
+.game-hud {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 100;
+}
+
+.hud-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 8px 15px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hud-btn:hover {
+  background: rgba(230, 57, 70, 0.8);
+  border-color: #e63946;
+}
+
+.hud-hint {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.7rem;
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+}
+
+/* Hide touch controls on desktop */
+@media (hover: hover) and (pointer: fine) {
+  .touch-controls {
+    display: none;
+  }
+}
+
+/* ====================== */
+/* GAME BOARD (Snake)     */
+/* ====================== */
+.board {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  background-color: var(--nokia-bg);
+}
+
+.cell {
+  width: 100%;
+  height: 100%;
+}
+
+.cell.snake {
+  background-color: var(--nokia-pixel);
+  box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.2);
+}
+
+.cell.food {
+  background-color: var(--nokia-pixel);
+  border-radius: 50%;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ====================== */
+/* CONTROLS (Nokia)       */
+/* ====================== */
+.controls-area {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+  width: 100%;
+}
+
+.brand {
+  color: #aaa;
+  font-weight: bold;
+  font-family: sans-serif;
+  letter-spacing: 3px;
+  font-size: 0.9rem;
+}
+
+.pad {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pad-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.pad-spacer {
+  width: 50px;
+  height: 50px;
+}
+
+.pad-center {
+  width: 50px;
+  height: 50px;
+  background: #bbb;
+  border-radius: 5px;
+}
+
+.pad-btn {
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  font-size: 1.2rem;
+}
+
+.btn {
+  background-color: #ddd;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  box-shadow: 0 4px 0 #999;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  color: #333;
+  font-family: inherit;
+  transition: all 0.1s;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active,
+.btn.pressed {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 #999;
+  background-color: #ccc;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.action-btn {
+  background-color: #fff;
+}
+
+/* ====================== */
+/* UI OVERLAYS            */
+/* ====================== */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(199, 240, 216, 0.95);
+  color: var(--nokia-pixel);
+  z-index: 20;
+  text-align: center;
+  gap: 10px;
+}
+
+.overlay h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.overlay p {
+  margin: 5px 0;
+}
+
+.overlay .btn {
+  margin: 5px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+
+.score-board {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  font-size: 1.2rem;
+  color: var(--nokia-pixel);
+  z-index: 15;
+}
+
+/* ====================== */
+/* MENU                   */
+/* ====================== */
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.menu-item {
+  padding: 8px 15px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.1s;
+}
+
+.menu-item.selected {
+  background-color: var(--nokia-pixel);
+  color: var(--nokia-bg);
+}
+
+.menu-scroll-indicator {
+  font-size: 0.8rem;
+  color: var(--nokia-pixel);
+  opacity: 0.6;
+  padding: 2px 0;
+}
+
+.menu-scroll-indicator.top {
+  margin-bottom: -5px;
+}
+
+.menu-scroll-indicator.bottom {
+  margin-top: -5px;
+}
+
+.menu-back-btn {
+  position: absolute;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #aaa;
+  padding: 5px 15px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.menu-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* ====================== */
+/* SPACE IMPACT           */
+/* ====================== */
+.space-game {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--nokia-bg);
+}
+
+/* HUD */
+.space-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 8px;
+  background: var(--nokia-pixel);
+  color: var(--nokia-bg);
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.hud-lives {
+  letter-spacing: 2px;
+}
+
+.heart-full {
+  color: var(--nokia-bg);
+}
+
+.heart-empty {
+  opacity: 0.4;
+}
+
+.hud-score {
+  font-family: monospace;
+}
+
+.space-hud-bottom {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 8px;
+  font-size: 0.6rem;
+  color: var(--nokia-pixel);
+  opacity: 0.8;
+}
+
+.weapon-level {
+  letter-spacing: 1px;
+}
+
+/* Game Board */
+.space-board {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.stars-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.star {
+  position: absolute;
+  color: var(--nokia-pixel);
+  opacity: 0.3;
+  font-size: 0.5rem;
+  animation: twinkle 2s infinite;
+}
+
+@keyframes twinkle {
+
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Cells */
+.space-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1rem;
+  color: var(--nokia-pixel);
+  position: relative;
+}
+
+/* Player Ship - Enhanced */
+.player-cell {
+  z-index: 10;
+  overflow: visible;
+}
+
+.spaceship {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  transform: scale(1.4);
+}
+
+.ship-exhaust {
+  font-size: 0.9rem;
+  color: var(--nokia-pixel);
+  margin-right: -4px;
+  animation: exhaust-flicker 0.15s infinite;
+}
+
+@keyframes exhaust-flicker {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.ship-main {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--nokia-pixel);
+  text-shadow: 1px 1px 0 var(--nokia-shadow);
+  letter-spacing: -2px;
+}
+
+.ship-cannon {
+  position: absolute;
+  font-size: 0.8rem;
+  color: var(--nokia-pixel);
+  left: 60%;
+}
+
+.ship-cannon.top {
+  top: -9px;
+}
+
+.ship-cannon.bottom {
+  bottom: -9px;
+}
+
+.player-cell.shielded {
+  background: radial-gradient(circle, rgba(67, 82, 61, 0.6) 0%, transparent 55%);
+  animation: shield-pulse 0.25s infinite;
+  border-radius: 50%;
+}
+
+@keyframes shield-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* Bullets - Bigger */
+.bullet-cell .bullet {
+  color: var(--nokia-pixel);
+  font-size: 0.8rem;
+  letter-spacing: -3px;
+  animation: bullet-move 0.08s linear;
+}
+
+@keyframes bullet-move {
+  from {
+    transform: translateX(-8px);
+    opacity: 0.7;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.enemy-bullet-cell .enemy-bullet {
+  color: var(--nokia-pixel);
+  font-size: 0.9rem;
+  animation: enemy-bullet-move 0.1s linear;
+}
+
+@keyframes enemy-bullet-move {
+  from {
+    transform: translateX(6px);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Enemies - BIGGER */
+.enemy-cell {
+  animation: enemy-hover 0.4s ease-in-out infinite;
+  overflow: visible;
+}
+
+.enemy-sprite {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: var(--nokia-pixel);
+  letter-spacing: -2px;
+}
+
+.enemy-sprite.fast {
+  font-size: 1.2rem;
+  animation: fast-wobble 0.15s infinite;
+}
+
+.enemy-sprite.tank {
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: -3px;
+}
+
+.enemy-sprite.shooter {
+  font-size: 1.3rem;
+  animation: shooter-glow 0.3s infinite;
+}
+
+@keyframes enemy-hover {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes fast-wobble {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(-3px);
+  }
+}
+
+@keyframes shooter-glow {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Power-ups - MUCH BIGGER */
+.powerup-cell {
+  animation: powerup-float 0.4s ease-in-out infinite;
+  overflow: visible;
+}
+
+.powerup-icon {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--nokia-pixel);
+  animation: powerup-blink 0.25s infinite;
+  letter-spacing: -1px;
+}
+
+.powerup-icon.weapon {
+  text-shadow: 0 0 3px var(--nokia-shadow);
+}
+
+.powerup-icon.shield {
+  text-shadow: 0 0 3px var(--nokia-shadow);
+}
+
+.powerup-icon.life {
+  text-shadow: 0 0 3px var(--nokia-shadow);
+}
+
+@keyframes powerup-float {
+
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-3px) scale(1.05);
+  }
+}
+
+@keyframes powerup-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes explode {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+/* Overlays */
+.space-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(199, 240, 216, 0.97);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--nokia-pixel);
+  text-align: center;
+  z-index: 50;
+  gap: 8px;
+}
+
+.title-art {
+  font-size: 0.9rem;
+  font-weight: bold;
+  line-height: 1.4;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.start-prompt {
+  font-size: 0.8rem;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.start-prompt.blink {
+  animation: blink 0.8s infinite;
+}
+
+.controls-info {
+  font-size: 0.6rem;
+  margin-top: 12px;
+  opacity: 0.6;
+}
+
+.controls-info p {
+  margin: 3px 0;
+}
+
+.final-stats {
+  margin: 10px 0;
+}
+
+.final-stats p {
+  margin: 5px 0;
+  font-size: 0.8rem;
+}
+
+.final-stats strong {
+  font-size: 1rem;
+}
+
+.space-overlay.gameover h2 {
+  font-size: 1.1rem;
+  margin: 0 0 5px 0;
+}
+
+/* ====================== */
+/* RESPONSIVE             */
+/* ====================== */
+@media (max-width: 600px) {
+  .touch-controls {
+    display: flex !important;
+    bottom: 10px;
+    padding: 0 15px;
+  }
+
+  .touch-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 1.2rem;
+  }
+
+  .touch-center {
+    width: 40px;
+    height: 40px;
+  }
+
+  .touch-a,
+  .touch-b {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+
+  .game-hud {
+    top: 5px;
+    right: 5px;
+    gap: 5px;
+  }
+
+  .hud-btn {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+
+  .phone {
+    padding: 20px 15px 40px 15px;
+    max-width: 100%;
+    border-radius: 20px 20px 30px 30px;
+  }
+}
+
+/* ====================== */
+/* TETRIS                 */
+/* ====================== */
+.tetris-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+  gap: 15px;
+  background-color: var(--nokia-bg);
+  position: relative;
+  overflow: hidden;
+  padding-top: 10px;
+}
+
+.tetris-game-area {
+  height: 95%;
+  aspect-ratio: 10 / 20;
+  border: 2px solid var(--nokia-pixel);
+  background-color: rgba(67, 82, 61, 0.05);
+}
+
+.tetris-board {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(20, 1fr);
+  width: 100%;
+  height: 100%;
+}
+
+.tetris-cell {
+  position: relative;
+  border: 0.5px solid rgba(67, 82, 61, 0.1);
+}
+
+.tetris-cell.c1,
+.tetris-cell.c2,
+.tetris-cell.c3,
+.tetris-cell.c4,
+.tetris-cell.c5,
+.tetris-cell.c6,
+.tetris-cell.c7 {
+  background-color: var(--nokia-pixel);
+  border: 1px solid var(--nokia-bg);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Pattern textures for monochrome feel */
+.tetris-cell.c1::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tetris-cell.c2::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.tetris-cell.c3::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tetris-cell.c4::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
+}
+
+.tetris-cell.c5::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(-45deg, transparent 40%, rgba(255, 255, 255, 0.2) 50%, transparent 60%);
+}
+
+.tetris-cell.c6::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 20%, transparent 30%);
+}
+
+.tetris-cell.c7::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+
+.tetris-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 70px;
+  padding-top: 10px;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sidebar-section .label {
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--nokia-pixel);
+  margin-bottom: 2px;
+}
+
+.sidebar-section .value {
+  font-family: monospace;
+  font-size: 1.1rem;
+  color: var(--nokia-pixel);
+}
+
+.next-piece-container {
+  width: 60px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--nokia-pixel);
+  background: rgba(67, 82, 61, 0.05);
+  margin-top: 2px;
+}
+
+.next-piece-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.next-row {
+  display: flex;
+  gap: 1px;
+}
+
+.preview-cell {
+  width: 10px;
+  height: 10px;
+}
+
+.preview-cell.c1,
+.preview-cell.c2,
+.preview-cell.c3,
+.preview-cell.c4,
+.preview-cell.c5,
+.preview-cell.c6,
+.preview-cell.c7 {
+  background-color: var(--nokia-pixel);
+}
+
+.controls-hint {
+  font-size: 0.8rem;
+  margin: 10px 0;
+  text-align: left;
+  line-height: 1.4;
+}
+
+
+
+
+/* ====================== */
+/* 2048 GAME              */
+/* ====================== */
+.game-2048-container {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  padding: 4px;
+  background-color: var(--nokia-bg);
+  justify-content: flex-end;
+}
+
+.game-headers {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: auto;
+  /* Push headers to top */
+  width: 100%;
+  padding: 0 5px;
+}
+
+.score-box {
+  background: var(--nokia-pixel);
+  color: var(--nokia-bg);
+  padding: 2px 6px;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 50px;
+}
+
+.score-box .label {
+  font-size: 0.6rem;
+  opacity: 0.8;
+}
+
+.score-box .value {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 3px;
+  background: var(--nokia-pixel);
+  border: 4px solid var(--nokia-pixel);
+  padding: 2px;
+
+  /* SQUARE LOCK */
+  width: auto;
+  height: auto;
+  max-height: 74%;
+  /* Optimized for visibility */
+  aspect-ratio: 1 / 1;
+  margin: 24px auto 1px auto;
+  border-radius: 4px;
+}
+
+.grid-cell {
+  background: var(--nokia-bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--nokia-pixel);
+  position: relative;
+}
+
+.grid-cell.tile-2 {
+  opacity: 0.3;
+}
+
+.grid-cell.tile-4 {
+  opacity: 0.4;
+}
+
+.grid-cell.tile-8 {
+  opacity: 0.5;
+}
+
+.grid-cell.tile-16 {
+  opacity: 0.6;
+  color: #fff;
+  background: var(--nokia-pixel);
+}
+
+.grid-cell.tile-32 {
+  opacity: 0.7;
+  color: #fff;
+  background: var(--nokia-pixel);
+}
+
+.grid-cell.tile-64 {
+  opacity: 0.8;
+  color: #fff;
+  background: var(--nokia-pixel);
+}
+
+.grid-cell.tile-128 {
+  opacity: 0.9;
+  color: #fff;
+  background: var(--nokia-pixel);
+  font-size: 1rem;
+}
+
+.grid-cell.tile-256 {
+  opacity: 1;
+  color: #fff;
+  background: var(--nokia-pixel);
+  font-size: 1rem;
+  box-shadow: inset 0 0 5px #fff;
+}
+
+.grid-cell.tile-512 {
+  opacity: 1;
+  color: #fff;
+  background: var(--nokia-pixel);
+  font-size: 1rem;
+  border: 1px dashed #fff;
+}
+
+.grid-cell.tile-1024 {
+  opacity: 1;
+  color: #fff;
+  background: var(--nokia-pixel);
+  font-size: 0.8rem;
+  border: 2px double #fff;
+}
+
+.grid-cell.tile-2048 {
+  opacity: 1;
+  color: #000;
+  background: #fff;
+  font-size: 0.8rem;
+  border: 2px solid #000;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.game-2048-container .controls-hint {
+  font-size: 0.8rem;
+  margin: 10px 0;
+  opacity: 0.8;
+  text-align: center;
+}
+
+/* ====================== */
+/* QUANTUM SNAKE          */
+/* ====================== */
+.quantum-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background-color: var(--nokia-bg);
+}
+
+.quantum-board-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--nokia-pixel);
+  border: 4px solid var(--nokia-pixel);
+  padding: 2px;
+
+  /* Size Constraints */
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 70%;
+  /* Limit height to prevent cutoff */
+  aspect-ratio: 4 / 3;
+  /* Matches 20x15 grid */
+  margin: auto;
+  /* Center in available space */
+}
+
+/* ====================== */
+/* QUANTUM SNAKE FIX      */
+/* ====================== */
+.quantum-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 4px !important;
+  /* Force override */
+  background-color: var(--nokia-bg);
+}
+
+.quantum-board-wrapper {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--nokia-pixel);
+  border: 4px solid var(--nokia-pixel);
+  padding: 2px !important;
+
+  /* Size Constraints */
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 80% !important;
+  /* Force override */
+  aspect-ratio: 4 / 3;
+  margin: auto;
+}
+
+/* ====================== */
+/* SONAR FIX              */
+/* ====================== */
+.sonar-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 4px !important;
+  background-color: var(--nokia-bg);
+  font-family: 'VT323', monospace;
+  /* Pixel Font */
+  font-size: 1.2rem;
+}
+
+/* ====================== */
+/* PACMAN                 */
+/* ====================== */
+.pacman-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--nokia-bg);
+}
+
+.pacman-board {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  background-color: var(--nokia-bg);
+}
+
+.pac-cell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.maze-wall {
+  background-color: var(--nokia-pixel);
+  box-shadow: inset 1px 1px 0 rgba(199, 240, 216, 0.2);
+}
+
+.maze-gate {
+  background: repeating-linear-gradient(45deg,
+      transparent,
+      transparent 2px,
+      var(--nokia-pixel) 2px,
+      var(--nokia-pixel) 4px);
+  opacity: 0.5;
+}
+
+.pellet {
+  width: 30%;
+  height: 30%;
+  background-color: var(--nokia-pixel);
+  border-radius: 50%;
+}
+
+.power-pellet {
+  width: 70%;
+  height: 70%;
+  background-color: var(--nokia-pixel);
+  border-radius: 50%;
+  animation: blink 0.5s infinite alternate;
+}
+
+.pacman-sprite {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: var(--nokia-bg);
+  background-color: var(--nokia-pixel);
+  border-radius: 50%;
+  animation: chomp 0.3s infinite alternate;
+  transition: left 0.14s linear, top 0.14s linear;
+  z-index: 10;
+}
+
+/* Mouth directions via text rotation/clipping */
+.pacman-sprite.left {
+  transform: rotate(180deg);
+}
+
+.pacman-sprite.right {
+  transform: rotate(0deg);
+}
+
+.pacman-sprite.up {
+  transform: rotate(-90deg);
+}
+
+.pacman-sprite.down {
+  transform: rotate(90deg);
+}
+
+@keyframes chomp {
+  from {
+    clip-path: polygon(100% 74%, 44% 48%, 100% 21%, 100% 0, 0 0, 0 100%, 100% 100%);
+  }
+
+  to {
+    clip-path: polygon(100% 50%, 44% 48%, 100% 50%, 100% 0, 0 0, 0 100%, 100% 100%);
+  }
+}
+
+.ghost-sprite {
+  position: absolute;
+  width: 90%;
+  height: 90%;
+  background-color: var(--nokia-pixel);
+  color: var(--nokia-bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: bold;
+  border-radius: 50% 50% 0 0;
+  clip-path: polygon(0% 100%, 0% 0%, 100% 0%, 100% 100%, 80% 80%, 60% 100%, 40% 80%, 20% 100%);
+  z-index: 5;
+  transition: left 0.14s linear, top 0.14s linear;
+}
+
+.ghost-sprite.frightened {
+  background: repeating-linear-gradient(45deg,
+      var(--nokia-pixel),
+      var(--nokia-pixel) 2px,
+      rgba(67, 82, 61, 0.5) 2px,
+      rgba(67, 82, 61, 0.5) 4px);
+  animation: ghost-shake 0.2s infinite;
+}
+
+@keyframes ghost-shake {
+  0% {
+    transform: translateX(1px);
+  }
+
+  50% {
+    transform: translateX(-1px);
+  }
+
+  100% {
+    transform: translateX(1px);
+  }
+}
