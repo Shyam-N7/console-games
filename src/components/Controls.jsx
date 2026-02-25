@@ -65,7 +65,7 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
                     className="btn action-btn"
                     onPointerDown={(e) => { e.preventDefault(); onReset(); }}
                 >
-                    {status === 'playing' ? (isConsole ? 'START' : 'RESTART') : 'START'}
+                    {status === 'playing' ? (isConsole ? 'START' : (gameName === 'SONAR' ? 'PING' : 'RESTART')) : 'START'}
                 </button>
                 {isConsole && (
                     <button
