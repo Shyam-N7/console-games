@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useSnakeGame } from './hooks/useSnakeGame';
 import { useSpaceImpact } from './hooks/useSpaceImpact';
 import { useTetris } from './hooks/useTetris';
@@ -56,7 +56,7 @@ function App() {
   const pacmanGame = usePacman();
 
   // Menu Logic
-  const handleMenuNav = (direction) => {
+  const handleMenuNav = useCallback((direction) => {
     if (activeGame !== 'menu') return;
     playSound('nav');
     if (direction === 'up') {
@@ -64,9 +64,9 @@ function App() {
     } else if (direction === 'down') {
       setMenuIndex(prev => (prev + 1) % GAME_LIST.length);
     }
-  };
+  }, [activeGame, playSound]);
 
-  const handleMenuSelect = () => {
+  const handleMenuSelect = useCallback(() => {
     if (activeGame !== 'menu') return;
     const selected = GAME_LIST[menuIndex];
     if (!selected.locked) {
@@ -81,11 +81,11 @@ function App() {
     } else {
       playSound('nav');
     }
-  };
+  }, [activeGame, menuIndex, playSound, snakeGame, tetrisGame, game2048, quantumGame, sonarGame, pacmanGame]);
 
-  const returnToMenu = () => {
+  const returnToMenu = useCallback(() => {
     setActiveGame('menu');
-  };
+  }, []);
 
   // Dynamic browser tab title
   React.useEffect(() => {
@@ -198,7 +198,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [activeGame, menuIndex, snakeGame, spaceGame, tetrisGame]);
+  }, [activeGame, handleMenuNav, handleMenuSelect, snakeGame, spaceGame, tetrisGame, game2048, quantumGame, sonarGame, pacmanGame, returnToMenu]);
 
   // If Mario is selected, render the dedicated Mario canvas
   if (activeGame === 'mario') {

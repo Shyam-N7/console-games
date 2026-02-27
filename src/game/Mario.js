@@ -23,6 +23,14 @@ export class Mario {
         this.dead = false;
         this.invincible = false;
         this.invincibleTimer = 0;
+        this.groundGraceTimer = 0; // coyote time in ms
+        this.jumpBufferTimer = 0; // jump input buffer in ms
+        this.prevJumpInput = false;
+        this.prevX = x;
+        this.prevY = y;
+
+        // Power-ups
+        this.fireballCooldown = 0;
 
         // Animation
         this.animFrame = 0;
@@ -31,10 +39,14 @@ export class Mario {
     }
 
     update(input, level, deltaTime) {
+        this.prevX = this.x;
+        this.prevY = this.y;
+
         if (this.dead) {
             // Death animation - just fall
             this.vy += PHYSICS.GRAVITY;
             this.y += this.vy;
+            this.prevJumpInput = Boolean(input.jump);
             return;
         }
 
@@ -68,10 +80,31 @@ export class Mario {
         // Clamp horizontal speed
         this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
 
-        // Jumping
-        if (input.jump && this.onGround && !this.jumping) {
+        // Coyote time (forgiving jumps right after leaving a ledge)
+        if (this.onGround) {
+            this.groundGraceTimer = 100;
+        } else if (this.groundGraceTimer > 0) {
+            this.groundGraceTimer = Math.max(0, this.groundGraceTimer - deltaTime);
+        }
+
+        // Fireball cooldown
+        if (this.fireballCooldown > 0) this.fireballCooldown -= deltaTime;
+
+        const jumpPressed = Boolean(input.jump);
+        const jumpJustPressed = jumpPressed && !this.prevJumpInput;
+
+        if (jumpJustPressed) {
+            this.jumpBufferTimer = 120;
+        } else if (this.jumpBufferTimer > 0) {
+            this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - deltaTime);
+        }
+
+        // Buffered jump + coyote time
+        if (this.jumpBufferTimer > 0 && (this.onGround || this.groundGraceTimer > 0)) {
             this.vy = PHYSICS.JUMP_VELOCITY;
             this.onGround = false;
+            this.groundGraceTimer = 0;
+            this.jumpBufferTimer = 0;
             this.jumping = true;
         }
 
@@ -81,11 +114,11 @@ export class Mario {
         }
 
         // Release jump
-        if (!input.jumpHeld) {
+        if (!input.jumpHeld && this.jumping) {
             this.jumping = false;
-            // Cut jump short
-            if (this.vy < -3) {
-                this.vy = -3;
+            // Cut jump short smoothly
+            if (this.vy < 0) {
+                this.vy *= 0.5; // Dampen upward momentum
             }
         }
 
@@ -109,100 +142,100 @@ export class Mario {
 
         // Left boundary
         if (this.x < 0) this.x = 0;
+
+        this.prevJumpInput = jumpPressed;
     }
 
     moveX(level) {
-        const newX = this.x + this.vx;
+        const totalMove = this.vx;
+        const steps = Math.max(1, Math.ceil(Math.abs(totalMove) / 2));
+        const stepX = totalMove / steps;
 
-        // Check collision at new position
-        const top = this.y;
-        const bottom = this.y + this.height - 1;
+        for (let step = 0; step < steps; step++) {
+            const newX = this.x + stepX;
+            const top = this.y + 1;
+            const bottom = this.y + this.height - 2;
 
-        if (this.vx > 0) {
-            // Moving right
-            const rightEdge = newX + this.width - 1;
-            const tileX = Math.floor(rightEdge / 16);
+            if (stepX > 0) {
+                const rightEdge = newX + this.width - 1;
+                const tileX = Math.floor(rightEdge / 16);
 
-            for (let py = top; py <= bottom; py += 8) {
-                const tile = level.getTile(rightEdge, py);
-                if (level.isSolid(tile)) {
-                    this.x = tileX * 16 - this.width;
-                    this.vx = 0;
-                    return;
+                for (let py = top; py <= bottom; py += 6) {
+                    const tile = level.getTile(rightEdge, py);
+                    if (level.isSolid(tile)) {
+                        this.x = tileX * 16 - this.width;
+                        this.vx = 0;
+                        return;
+                    }
+                }
+            } else if (stepX < 0) {
+                const tileX = Math.floor(newX / 16);
+
+                for (let py = top; py <= bottom; py += 6) {
+                    const tile = level.getTile(newX, py);
+                    if (level.isSolid(tile)) {
+                        this.x = (tileX + 1) * 16;
+                        this.vx = 0;
+                        return;
+                    }
                 }
             }
-        } else if (this.vx < 0) {
-            // Moving left
-            const tileX = Math.floor(newX / 16);
 
-            for (let py = top; py <= bottom; py += 8) {
-                const tile = level.getTile(newX, py);
-                if (level.isSolid(tile)) {
-                    this.x = (tileX + 1) * 16;
-                    this.vx = 0;
-                    return;
-                }
-            }
+            this.x = Math.max(0, newX);
         }
-
-        this.x = Math.max(0, newX);
     }
 
     moveY(level) {
-        const newY = this.y + this.vy;
+        this.hitBlock = null;
 
+        const totalMove = this.vy;
+        const steps = Math.max(1, Math.ceil(Math.abs(totalMove) / 2));
+        const stepY = totalMove / steps;
         const left = this.x + 2;
         const right = this.x + this.width - 3;
 
-        if (this.vy > 0) {
-            // Falling
-            const bottomEdge = newY + this.height - 1;
-            const tileY = Math.floor(bottomEdge / 16);
+        for (let step = 0; step < steps; step++) {
+            const newY = this.y + stepY;
 
-            let landed = false;
-            for (let px = left; px <= right; px += 6) {
-                const tile = level.getTile(px, bottomEdge);
-                if (level.isSolid(tile)) {
-                    this.y = tileY * 16 - this.height;
-                    this.vy = 0;
-                    this.onGround = true;
-                    landed = true;
-                    break;
+            if (stepY > 0) {
+                // Falling
+                const bottomEdge = newY + this.height - 1;
+                const tileY = Math.floor(bottomEdge / 16);
+
+                for (let px = left; px <= right; px += 5) {
+                    const tile = level.getTile(px, bottomEdge);
+                    if (level.isSolid(tile)) {
+                        this.y = tileY * 16 - this.height;
+                        this.vy = 0;
+                        this.onGround = true;
+                        this.jumping = false;
+                        return;
+                    }
                 }
-            }
 
-            if (!landed) {
                 this.y = newY;
                 this.onGround = false;
-            }
-        } else if (this.vy < 0) {
-            // Jumping up
-            const tileY = Math.floor(newY / 16);
+            } else if (stepY < 0) {
+                // Jumping up
+                const topEdge = newY;
+                const tileY = Math.floor(topEdge / 16);
 
-            let hitHead = false;
-            let hitTileX = -1;
-
-            for (let px = left; px <= right; px += 6) {
-                const tile = level.getTile(px, newY);
-                if (level.isSolid(tile)) {
-                    hitHead = true;
-                    hitTileX = Math.floor(px / 16);
-                    break;
+                for (let px = left; px <= right; px += 5) {
+                    const tile = level.getTile(px, topEdge);
+                    if (level.isSolid(tile)) {
+                        this.y = (tileY + 1) * 16;
+                        this.vy = 0;
+                        this.jumping = false;
+                        this.hitBlock = { x: Math.floor(px / 16), y: tileY };
+                        return;
+                    }
                 }
-            }
 
-            if (hitHead) {
-                this.y = (tileY + 1) * 16;
-                this.vy = 0;
-
-                // Return hit block info for the game to handle
-                this.hitBlock = { x: hitTileX, y: tileY };
+                this.y = newY;
+                this.onGround = false;
             } else {
                 this.y = newY;
-                this.hitBlock = null;
             }
-        } else {
-            this.y = newY;
         }
     }
 
@@ -225,11 +258,17 @@ export class Mario {
             this.state = 'big';
             this.height = PHYSICS.BIG_HEIGHT;
             this.y -= 16; // Adjust position
+        } else if (this.state === 'big') {
+            this.state = 'fire';
         }
     }
 
     shrink() {
-        if (this.state !== 'small') {
+        if (this.state === 'fire') {
+            this.state = 'big';
+            this.invincible = true;
+            this.invincibleTimer = 2000;
+        } else if (this.state === 'big') {
             this.state = 'small';
             this.height = PHYSICS.SMALL_HEIGHT;
             this.invincible = true;
@@ -237,6 +276,16 @@ export class Mario {
         } else if (!this.invincible) {
             this.die();
         }
+    }
+
+    throwFireball() {
+        if (this.state === 'fire' && this.fireballCooldown <= 0) {
+            this.fireballCooldown = 150; // Delay between throws
+            const spawnX = this.facingRight ? this.x + this.width : this.x - 8;
+            const spawnY = this.y + 8;
+            return new Fireball(spawnX, spawnY, this.facingRight);
+        }
+        return null;
     }
 
     die() {
@@ -359,31 +408,99 @@ export class Mario {
         } else {
             // Big Mario (16x32) - simplified for now
             const py = y;
+            const hatColor = red;
+            const shirtColor = red;
+            const skinColor = skin;
 
             // Head
-            ctx.fillStyle = red;
+            ctx.fillStyle = hatColor;
             ctx.fillRect(x + 3, py + 0, 6, 2);
             ctx.fillRect(x + 2, py + 2, 9, 2);
 
-            ctx.fillStyle = brown;
+            ctx.fillStyle = shirtColor;
             ctx.fillRect(x + 2, py + 4, 3, 2);
-            ctx.fillStyle = skin;
+            ctx.fillStyle = skinColor;
             ctx.fillRect(x + 5, py + 4, 4, 4);
 
             // Body
-            ctx.fillStyle = red;
+            ctx.fillStyle = hatColor;
             ctx.fillRect(x + 2, py + 10, 10, 6);
 
             // Legs
-            ctx.fillStyle = brown;
+            ctx.fillStyle = shirtColor;
             ctx.fillRect(x + 2, py + 16, 4, 8);
             ctx.fillRect(x + 8, py + 16, 4, 8);
 
             // Feet
+            ctx.fillStyle = brown;
             ctx.fillRect(x + 0, py + 24, 5, 4);
             ctx.fillRect(x + 9, py + 24, 5, 4);
         }
 
         ctx.restore();
+    }
+}
+
+export class Fireball {
+    constructor(x, y, goingRight) {
+        this.x = x;
+        this.y = y;
+        this.vx = goingRight ? 5 : -5;
+        this.vy = 2; // Initial slight downward throw
+        this.width = 8;
+        this.height = 8;
+        this.dead = false;
+
+        this.animTimer = 0;
+        this.frame = 0;
+    }
+
+    update(level, deltaTime) {
+        if (this.dead) return true;
+
+        this.vy += PHYSICS.GRAVITY * 0.5; // lighter gravity for fireballs
+        this.vy = Math.min(this.vy, PHYSICS.MAX_FALL_SPEED);
+
+        const newX = this.x + this.vx;
+        const newY = this.y + this.vy;
+
+        const leftTile = level.getTile(newX, newY + this.height / 2);
+        const rightTile = level.getTile(newX + this.width, newY + this.height / 2);
+        if (level.isSolid(leftTile) || level.isSolid(rightTile)) {
+            return true; // Destroy on hitting a wall
+        }
+
+        const bottomTile = level.getTile(newX + 4, newY + this.height);
+        if (level.isSolid(bottomTile)) {
+            // Bounce
+            this.y = Math.floor((newY + this.height) / 16) * 16 - this.height;
+            this.vy = -4.5; // Bounce height
+        } else {
+            this.y = newY;
+        }
+
+        this.x = newX;
+
+        // Animate spin
+        this.animTimer += deltaTime;
+        if (this.animTimer > 50) {
+            this.animTimer = 0;
+            this.frame = (this.frame + 1) % 4;
+        }
+
+        return this.y > 300 || this.x < 0 || this.x > level.width;
+    }
+
+    render(ctx, cameraX) {
+        const screenX = Math.floor(this.x - cameraX);
+        const screenY = Math.floor(this.y);
+
+        if (screenX < -10 || screenX > 260) return;
+
+        ctx.fillStyle = (this.frame % 2 === 0) ? '#f83800' : '#f8b800'; // Flash red/orange
+        ctx.fillRect(screenX + 2, screenY + 0, 4, 8);
+        ctx.fillRect(screenX + 0, screenY + 2, 8, 4);
+        ctx.fillStyle = '#fff'; // White center hole
+        ctx.fillRect(screenX + 2, screenY + 2, 4, 4);
     }
 }

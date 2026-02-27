@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAudio } from './useAudio';
 
 // Tetromino shapes
@@ -141,7 +141,9 @@ export const useTetris = () => {
         // But board update is async.
         // We optimistically assume next piece placement.
 
-        const next = nextPiece || randomTetromino();
+        const next = nextPiece
+            ? { ...nextPiece, shape: nextPiece.shape.map(row => [...row]) }
+            : randomTetromino();
         next.x = Math.floor(BOARD_WIDTH / 2) - Math.ceil(next.shape[0].length / 2);
         next.y = 0;
 
@@ -159,7 +161,7 @@ export const useTetris = () => {
         // So we defer "game over" check to the first move or collision check.
         // If the new piece collides immediately, it's game over.
 
-    }, [currentPiece, nextPiece, level, board, isValidPosition, playSound]); // Added board dependency
+    }, [currentPiece, nextPiece, level, playSound]);
 
     // Game loop logic
     const moveDown = useCallback(() => {
@@ -224,29 +226,6 @@ export const useTetris = () => {
         }
     }, [currentPiece, board, status, isValidPosition, playSound]);
 
-    const hardDrop = () => {
-        if (status !== 'playing' || !currentPiece) return;
-        let dropY = 0;
-        while (isValidPosition(currentPiece, board, 0, dropY + 1)) {
-            dropY++;
-        }
-        setCurrentPiece(p => ({ ...p, y: p.y + dropY }));
-        // Using a ref or flag to force lock next tick could be cleaner
-        // but calling lockPiece immediately might race with state.
-        // We'll verify next tick or use a timeout 0.
-        // Actually, let's just let the next auto-tick handle it?
-        // No, hard drop should lock.
-        // We can't consistently call lockPiece() here because lockPiece depends on state 
-        // that hasn't updated yet (the y change).
-        // So we trigger an effect?
-        // Or simpler: calculate final position and lock there directly.
-
-        // Manual lock logic for hard drop to ensure sync
-        // Using the *future* position
-        // ...actually, updating state and waiting 10ms is standard enough for React Tetris.
-        // But to ensure it locks 'this' piece, we'll rely on correct state.
-    };
-
     // Re-implement Hard Drop to be synchronous logic-wise
     const performHardDrop = () => {
         if (status !== 'playing' || !currentPiece) return;
@@ -290,6 +269,7 @@ export const useTetris = () => {
             const first = randomTetromino();
             // Center correction
             first.x = Math.floor(BOARD_WIDTH / 2) - Math.ceil(first.shape[0].length / 2);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCurrentPiece(first);
             setNextPiece(randomTetromino());
         }
@@ -298,6 +278,7 @@ export const useTetris = () => {
     // Check Game Over
     useEffect(() => {
         if (status === 'playing' && currentPiece && !isValidPosition(currentPiece, board)) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStatus('gameover');
             playSound('crash');
         }

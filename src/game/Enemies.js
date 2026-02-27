@@ -41,8 +41,6 @@ export class Goomba {
 
         // Ground collision
         const bottomY = Math.floor((newY + this.height) / 16);
-        const leftX = Math.floor(newX / 16);
-        const rightX = Math.floor((newX + this.width - 1) / 16);
 
         if (bottomY < 16) {
             const leftTile = level.getTile(newX + 2, newY + this.height);
@@ -160,50 +158,102 @@ export class Koopa {
         this.width = 16;
         this.height = 24;
         this.dead = false;
+        this.stomped = false;
+
+        // Shell specific states
         this.inShell = false;
         this.shellMoving = false;
         this.shellVx = 0;
+        this.deathTimer = 0;
 
         this.walkFrame = 0;
         this.animTimer = 0;
     }
 
     update(level, deltaTime) {
-        // Similar to Goomba but with shell mechanics
-        // Simplified for now
-        this.vy += PHYSICS.GRAVITY;
-        this.y += this.vy;
-
-        // Ground
-        const bottomTile = level.getTile(this.x + 8, this.y + this.height);
-        if (level.isSolid(bottomTile)) {
-            this.y = Math.floor((this.y + this.height) / 16) * 16 - this.height;
-            this.vy = 0;
+        if (this.dead && !this.inShell) {
+            this.deathTimer += deltaTime;
+            this.vy += PHYSICS.GRAVITY;
+            this.y += this.vy;
+            return this.y > 300;
         }
 
-        if (!this.inShell || this.shellMoving) {
-            this.x += this.shellMoving ? this.shellVx : this.vx;
+        // Gravity
+        this.vy += PHYSICS.GRAVITY;
+        this.vy = Math.min(this.vy, PHYSICS.MAX_FALL_SPEED);
+
+        // Move
+        const currentVx = (this.inShell && this.shellMoving) ? this.shellVx : (this.inShell ? 0 : this.vx);
+        const newX = this.x + currentVx;
+        const newY = this.y + this.vy;
+
+        // Ground collision
+        const bottomY = Math.floor((newY + this.height) / 16);
+
+        if (bottomY < 16) {
+            const leftTile = level.getTile(newX + 2, newY + this.height);
+            const rightTile = level.getTile(newX + this.width - 3, newY + this.height);
+
+            if (level.isSolid(leftTile) || level.isSolid(rightTile)) {
+                this.y = bottomY * 16 - this.height;
+                this.vy = 0;
+            } else {
+                this.y = newY;
+            }
+        } else {
+            return true; // fell hole
+        }
+
+        // Wall collision
+        const frontX = currentVx > 0 ? newX + this.width : newX;
+        // Check middle of body
+        const frontTile = level.getTile(frontX, this.y + (this.height / 2));
+
+        if (level.isSolid(frontTile)) {
+            if (this.inShell && this.shellMoving) {
+                this.shellVx *= -1; // Bounce shell
+            } else if (!this.inShell) {
+                this.vx *= -1; // Turn around walking
+            }
+        } else {
+            this.x = newX;
         }
 
         // Animation
-        this.animTimer += deltaTime;
-        if (this.animTimer > 200) {
-            this.animTimer = 0;
-            this.walkFrame = 1 - this.walkFrame;
+        if (!this.inShell || Math.abs(currentVx) > 0) {
+            this.animTimer += deltaTime;
+            if (this.animTimer > (this.inShell ? 50 : 150)) {
+                this.animTimer = 0;
+                this.walkFrame = 1 - this.walkFrame;
+            }
         }
 
-        return this.y > 300;
+        return false;
     }
 
-    stomp() {
+    stomp(marioX) {
         if (!this.inShell) {
+            // First stomp: tuck into shell
             this.inShell = true;
+            this.y += 8; // Adjust height down
             this.height = 16;
-            this.vx = 0;
+            this.shellMoving = false;
         } else if (!this.shellMoving) {
+            // Second stomp/touch: kick shell
             this.shellMoving = true;
-            this.shellVx = 6;
+            // Kick away from Mario
+            this.shellVx = (this.x > marioX) ? 5 : -5;
+        } else {
+            // Stomped while moving: stop shell
+            this.shellMoving = false;
+            this.shellVx = 0;
         }
+    }
+
+    kick() {
+        this.dead = true;
+        this.inShell = false;
+        this.vy = -5;
     }
 
     render(ctx, cameraX) {
@@ -212,24 +262,48 @@ export class Koopa {
 
         if (screenX < -20 || screenX > 270) return;
 
+        ctx.imageSmoothingEnabled = false;
+
         const green = '#00a800';
         const yellow = '#f8d800';
+        const skin = '#eecfa1';
+        const white = '#ffffff';
 
         if (this.inShell) {
             // Shell
             ctx.fillStyle = green;
-            ctx.fillRect(screenX + 2, screenY + 4, 12, 12);
-            ctx.fillRect(screenX + 0, screenY + 6, 16, 8);
+            ctx.fillRect(screenX + 2, screenY + 2, 12, 10);
+            ctx.fillStyle = white;
+            ctx.fillRect(screenX + 4, screenY + 4, 8, 6);
+
+            // Bottom rim
+            ctx.fillStyle = skin;
+            ctx.fillRect(screenX + 0, screenY + 12, 16, 4);
         } else {
-            // Walking koopa
+            // Walking koopa (facing based on vx)
+            const facingLeft = this.vx < 0;
+
+            // Head
+            ctx.fillStyle = yellow;
+            ctx.fillRect(screenX + (facingLeft ? 0 : 8), screenY + 0, 8, 8);
+
+            // Shell back
             ctx.fillStyle = green;
-            ctx.fillRect(screenX + 4, screenY + 0, 8, 8);
-            ctx.fillRect(screenX + 2, screenY + 8, 12, 12);
+            ctx.fillRect(screenX + (facingLeft ? 6 : 0), screenY + 8, 10, 12);
+
+            // Belly
+            ctx.fillStyle = skin;
+            ctx.fillRect(screenX + (facingLeft ? 2 : 10), screenY + 8, 4, 12);
 
             // Feet
             ctx.fillStyle = yellow;
-            ctx.fillRect(screenX + 2, screenY + 20, 4, 4);
-            ctx.fillRect(screenX + 10, screenY + 20, 4, 4);
+            if (this.walkFrame === 0) {
+                ctx.fillRect(screenX + 2, screenY + 20, 4, 4);
+                ctx.fillRect(screenX + 10, screenY + 20, 4, 4);
+            } else {
+                ctx.fillRect(screenX + 4, screenY + 20, 4, 4);
+                ctx.fillRect(screenX + 8, screenY + 20, 4, 4);
+            }
         }
     }
 }

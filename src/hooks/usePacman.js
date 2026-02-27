@@ -296,8 +296,9 @@ export const usePacman = () => {
     }, [forceRender]);
 
     // ---- Expose readable state ----
+    /* eslint-disable react-hooks/refs */
     const g = gs.current;
-    return {
+    const viewState = {
         grid: g.grid,
         pacman: g.pacman,
         ghosts: g.ghosts,
@@ -310,4 +311,8 @@ export const usePacman = () => {
         GRID_WIDTH,
         GRID_HEIGHT
     };
+    /* eslint-enable react-hooks/refs */
+
+    // eslint-disable-next-line react-hooks/refs
+    return viewState;
 };

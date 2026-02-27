@@ -79,7 +79,7 @@ export const useAudio = () => {
                 playTone(400, 'square', 0.05);
                 setTimeout(() => playTone(600, 'square', 0.1), 50);
                 break;
-            case 'jump': // Mario
+            case 'jump': { // Mario
                 const ctx = getAudioContext();
                 if (!ctx) return;
 
@@ -103,6 +103,7 @@ export const useAudio = () => {
                     console.error("Audio error:", e);
                 }
                 break;
+            }
             case 'coin': // Mario
                 playTone(900, 'square', 0.05);
                 setTimeout(() => playTone(1200, 'square', 0.1), 50);
@@ -110,7 +111,7 @@ export const useAudio = () => {
             default:
                 break;
         }
-    }, [playTone]);
+    }, [playTone, getAudioContext]);
 
     return { playSound };
 };

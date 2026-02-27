@@ -1,10 +1,119 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Game } from '../game/Game.js';
+
+const CONTROL_KEY_MAP = {
+    left: 'a',
+    right: 'd',
+    up: 'w',
+    down: 's',
+    jump: 'k',
+    run: 'l'
+};
+
+const OPPOSITE_CONTROL = {
+    left: 'right',
+    right: 'left',
+    up: 'down',
+    down: 'up'
+};
+
+const PREVENT_DEFAULT_KEYS = new Set([
+    'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+    ' ', 'w', 'a', 's', 'd', 'k', 'l', 'shift', 'enter'
+]);
+
+const detectTouchDevice = () => {
+    if (typeof window === 'undefined') return false;
+    const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    return coarsePointer || 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+};
 
 const MarioCanvas = ({ onBack }) => {
     const canvasRef = useRef(null);
     const gameRef = useRef(null);
     const containerRef = useRef(null);
+    const activeControlsRef = useRef(new Set());
+    const startTimeoutRef = useRef(null);
+
+    const [isTouchDevice, setIsTouchDevice] = useState(false);
+    const [activeControls, setActiveControls] = useState(new Set());
+
+    const syncActiveControls = useCallback(() => {
+        setActiveControls(new Set(activeControlsRef.current));
+    }, []);
+
+    const releaseControl = useCallback((control) => {
+        const game = gameRef.current;
+        const key = CONTROL_KEY_MAP[control];
+        if (!key || !activeControlsRef.current.has(control)) return;
+
+        activeControlsRef.current.delete(control);
+        if (game) {
+            game.handleInput(key, false);
+        }
+        syncActiveControls();
+    }, [syncActiveControls]);
+
+    const pressControl = useCallback((control) => {
+        const game = gameRef.current;
+        const key = CONTROL_KEY_MAP[control];
+        if (!game || !key || activeControlsRef.current.has(control)) return;
+
+        const opposite = OPPOSITE_CONTROL[control];
+        if (opposite && activeControlsRef.current.has(opposite)) {
+            game.handleInput(CONTROL_KEY_MAP[opposite], false);
+            activeControlsRef.current.delete(opposite);
+        }
+
+        game.handleInput(key, true);
+        activeControlsRef.current.add(control);
+        syncActiveControls();
+    }, [syncActiveControls]);
+
+    const releaseAllControls = useCallback(() => {
+        const game = gameRef.current;
+        if (game) {
+            for (const control of activeControlsRef.current) {
+                const key = CONTROL_KEY_MAP[control];
+                if (key) game.handleInput(key, false);
+            }
+        }
+        activeControlsRef.current.clear();
+        syncActiveControls();
+    }, [syncActiveControls]);
+
+    const triggerStart = useCallback(() => {
+        const game = gameRef.current;
+        if (!game) return;
+
+        game.handleInput('Enter', true);
+        if (startTimeoutRef.current) {
+            clearTimeout(startTimeoutRef.current);
+        }
+        startTimeoutRef.current = setTimeout(() => {
+            gameRef.current?.handleInput('Enter', false);
+            startTimeoutRef.current = null;
+        }, 90);
+    }, []);
+
+    useEffect(() => {
+        const updateTouchDevice = () => {
+            setIsTouchDevice(detectTouchDevice());
+        };
+
+        updateTouchDevice();
+
+        const media = window.matchMedia?.('(pointer: coarse)');
+        if (!media) return undefined;
+
+        if (media.addEventListener) {
+            media.addEventListener('change', updateTouchDevice);
+            return () => media.removeEventListener('change', updateTouchDevice);
+        }
+
+        media.addListener(updateTouchDevice);
+        return () => media.removeListener(updateTouchDevice);
+    }, []);
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -21,8 +130,8 @@ const MarioCanvas = ({ onBack }) => {
 
         // Input handlers
         const handleKeyDown = (e) => {
-            // Prevent default for game keys
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'w', 'a', 's', 'd', 'k', 'l'].includes(e.key.toLowerCase())) {
+            const key = e.key === ' ' ? ' ' : e.key.toLowerCase();
+            if (PREVENT_DEFAULT_KEYS.has(key)) {
                 e.preventDefault();
             }
             game.handleInput(e.key, true);
@@ -32,139 +141,158 @@ const MarioCanvas = ({ onBack }) => {
             game.handleInput(e.key, false);
         };
 
+        const handleWindowBlur = () => {
+            releaseAllControls();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                releaseAllControls();
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
+        window.addEventListener('blur', handleWindowBlur);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('blur', handleWindowBlur);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            releaseAllControls();
+
+            if (startTimeoutRef.current) {
+                clearTimeout(startTimeoutRef.current);
+                startTimeoutRef.current = null;
+            }
+
+            game.stop?.();
+            gameRef.current = null;
         };
-    }, [onBack]);
+    }, [onBack, releaseAllControls]);
 
-    // Touch controls for mobile
-    const handleTouchStart = (direction) => {
-        if (!gameRef.current) return;
-
-        switch (direction) {
-            case 'left':
-                gameRef.current.handleInput('a', true);
-                break;
-            case 'right':
-                gameRef.current.handleInput('d', true);
-                break;
-            case 'up':
-                gameRef.current.handleInput('w', true);
-                break;
-            case 'down':
-                gameRef.current.handleInput('s', true);
-                break;
-            case 'jump':
-                gameRef.current.handleInput('k', true);
-                break;
-            case 'run':
-                gameRef.current.handleInput('l', true);
-                break;
-            case 'start':
-                gameRef.current.handleInput('Enter', true);
-                setTimeout(() => gameRef.current?.handleInput('Enter', false), 100);
-                break;
+    const handleControlPointerDown = (control) => (e) => {
+        e.preventDefault();
+        if (e.currentTarget.setPointerCapture) {
+            e.currentTarget.setPointerCapture(e.pointerId);
         }
+        pressControl(control);
     };
 
-    const handleTouchEnd = (direction) => {
-        if (!gameRef.current) return;
+    const handleControlPointerUp = (control) => (e) => {
+        e.preventDefault();
+        releaseControl(control);
+    };
 
-        switch (direction) {
-            case 'left':
-                gameRef.current.handleInput('a', false);
-                break;
-            case 'right':
-                gameRef.current.handleInput('d', false);
-                break;
-            case 'up':
-                gameRef.current.handleInput('w', false);
-                break;
-            case 'down':
-                gameRef.current.handleInput('s', false);
-                break;
-            case 'jump':
-                gameRef.current.handleInput('k', false);
-                break;
-            case 'run':
-                gameRef.current.handleInput('l', false);
-                break;
-        }
+    const getTouchButtonClass = (control, extraClass = '') => {
+        const base = `mario-touch-btn ${extraClass}`.trim();
+        return activeControls.has(control) ? `${base} is-active` : base;
     };
 
     return (
-        <div className="mario-fullscreen" ref={containerRef}>
-            <canvas
-                ref={canvasRef}
-                className="mario-canvas-fullscreen"
-            />
+        <div
+            className={`mario-fullscreen${isTouchDevice ? ' mario-mobile' : ''}`}
+            ref={containerRef}
+            onContextMenu={(e) => e.preventDefault()}
+        >
+            <div className="mario-stage">
+                <canvas
+                    ref={canvasRef}
+                    className="mario-canvas-fullscreen"
+                />
+            </div>
 
-            {/* On-screen controls for touch devices */}
-            <div className="touch-controls">
-                {/* D-Pad */}
-                <div className="touch-dpad">
-                    <button
-                        className="touch-btn touch-up"
-                        onMouseDown={() => handleTouchStart('up')}
-                        onMouseUp={() => handleTouchEnd('up')}
-                        onTouchStart={(e) => { e.preventDefault(); handleTouchStart('up'); }}
-                        onTouchEnd={() => handleTouchEnd('up')}
-                    >▲</button>
-                    <div className="touch-dpad-row">
-                        <button
-                            className="touch-btn touch-left"
-                            onMouseDown={() => handleTouchStart('left')}
-                            onMouseUp={() => handleTouchEnd('left')}
-                            onTouchStart={(e) => { e.preventDefault(); handleTouchStart('left'); }}
-                            onTouchEnd={() => handleTouchEnd('left')}
-                        >◀</button>
-                        <div className="touch-center"></div>
-                        <button
-                            className="touch-btn touch-right"
-                            onMouseDown={() => handleTouchStart('right')}
-                            onMouseUp={() => handleTouchEnd('right')}
-                            onTouchStart={(e) => { e.preventDefault(); handleTouchStart('right'); }}
-                            onTouchEnd={() => handleTouchEnd('right')}
-                        >▶</button>
+            {isTouchDevice && (
+                <div className="mario-mobile-ui">
+                    <div className="mario-mobile-toolbar">
+                        <button type="button" className="hud-btn" onClick={triggerStart}>START</button>
+                        <button type="button" className="hud-btn" onClick={onBack}>MENU</button>
                     </div>
-                    <button
-                        className="touch-btn touch-down"
-                        onMouseDown={() => handleTouchStart('down')}
-                        onMouseUp={() => handleTouchEnd('down')}
-                        onTouchStart={(e) => { e.preventDefault(); handleTouchStart('down'); }}
-                        onTouchEnd={() => handleTouchEnd('down')}
-                    >▼</button>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="touch-actions">
-                    <button
-                        className="touch-btn touch-b"
-                        onMouseDown={() => handleTouchStart('run')}
-                        onMouseUp={() => handleTouchEnd('run')}
-                        onTouchStart={(e) => { e.preventDefault(); handleTouchStart('run'); }}
-                        onTouchEnd={() => handleTouchEnd('run')}
-                    >B</button>
-                    <button
-                        className="touch-btn touch-a"
-                        onMouseDown={() => handleTouchStart('jump')}
-                        onMouseUp={() => handleTouchEnd('jump')}
-                        onTouchStart={(e) => { e.preventDefault(); handleTouchStart('jump'); }}
-                        onTouchEnd={() => handleTouchEnd('jump')}
-                    >A</button>
-                </div>
-            </div>
+                    <div className="mario-touch-controls">
+                        <div className="mario-touch-dpad">
+                            <button
+                                type="button"
+                                className={getTouchButtonClass('up', 'mario-touch-up')}
+                                onPointerDown={handleControlPointerDown('up')}
+                                onPointerUp={handleControlPointerUp('up')}
+                                onPointerCancel={handleControlPointerUp('up')}
+                                aria-label="Up"
+                            >
+                                UP
+                            </button>
 
-            {/* HUD overlay */}
-            <div className="game-hud">
-                <button className="hud-btn" onClick={() => handleTouchStart('start')}>START</button>
-                <button className="hud-btn" onClick={onBack}>MENU</button>
-                <span className="hud-hint">C = Controls</span>
-            </div>
+                            <div className="mario-touch-dpad-row">
+                                <button
+                                    type="button"
+                                    className={getTouchButtonClass('left', 'mario-touch-left')}
+                                    onPointerDown={handleControlPointerDown('left')}
+                                    onPointerUp={handleControlPointerUp('left')}
+                                    onPointerCancel={handleControlPointerUp('left')}
+                                    aria-label="Left"
+                                >
+                                    LT
+                                </button>
+                                <div className="mario-touch-center" />
+                                <button
+                                    type="button"
+                                    className={getTouchButtonClass('right', 'mario-touch-right')}
+                                    onPointerDown={handleControlPointerDown('right')}
+                                    onPointerUp={handleControlPointerUp('right')}
+                                    onPointerCancel={handleControlPointerUp('right')}
+                                    aria-label="Right"
+                                >
+                                    RT
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                className={getTouchButtonClass('down', 'mario-touch-down')}
+                                onPointerDown={handleControlPointerDown('down')}
+                                onPointerUp={handleControlPointerUp('down')}
+                                onPointerCancel={handleControlPointerUp('down')}
+                                aria-label="Down"
+                            >
+                                DN
+                            </button>
+                        </div>
+
+                        <div className="mario-touch-actions">
+                            <button
+                                type="button"
+                                className={getTouchButtonClass('run', 'mario-touch-b')}
+                                onPointerDown={handleControlPointerDown('run')}
+                                onPointerUp={handleControlPointerUp('run')}
+                                onPointerCancel={handleControlPointerUp('run')}
+                                aria-label="Run"
+                            >
+                                B
+                            </button>
+                            <button
+                                type="button"
+                                className={getTouchButtonClass('jump', 'mario-touch-a')}
+                                onPointerDown={handleControlPointerDown('jump')}
+                                onPointerUp={handleControlPointerUp('jump')}
+                                onPointerCancel={handleControlPointerUp('jump')}
+                                aria-label="Jump"
+                            >
+                                A
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {!isTouchDevice && (
+                <div className="game-hud mario-game-hud">
+                    <button type="button" className="hud-btn" onClick={triggerStart}>START</button>
+                    <button type="button" className="hud-btn" onClick={onBack}>MENU</button>
+                    <span className="hud-hint">C = Controls</span>
+                </div>
+            )}
         </div>
     );
 };

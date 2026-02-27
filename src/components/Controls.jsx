@@ -4,6 +4,10 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
     const isConsole = mode === 'console';
     const pk = pressedDir || new Set();
 
+    const bindPress = (action) => ({
+        onPointerDown: (e) => { e.preventDefault(); action(); }
+    });
+
     return (
         <div className={`controls-area ${isConsole ? 'console-controls' : ''}`}>
             {!isConsole && <div className="brand">{gameName || 'NOKIA'}</div>}
@@ -14,7 +18,7 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
                     <div className="pad-spacer"></div>
                     <button
                         className={`btn pad-btn ${pk.has('up') ? 'pressed' : ''}`}
-                        onPointerDown={(e) => { e.preventDefault(); onChangeDirection({ x: 0, y: -1 }); }}
+                        {...bindPress(() => onChangeDirection({ x: 0, y: -1 }))}
                         aria-label="Up"
                     >
                         ▲
@@ -24,7 +28,7 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
                 <div className="pad-row">
                     <button
                         className={`btn pad-btn ${pk.has('left') ? 'pressed' : ''}`}
-                        onPointerDown={(e) => { e.preventDefault(); onChangeDirection({ x: -1, y: 0 }); }}
+                        {...bindPress(() => onChangeDirection({ x: -1, y: 0 }))}
                         aria-label="Left"
                     >
                         ◀
@@ -32,7 +36,7 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
                     <div className="pad-center"></div>
                     <button
                         className={`btn pad-btn ${pk.has('right') ? 'pressed' : ''}`}
-                        onPointerDown={(e) => { e.preventDefault(); onChangeDirection({ x: 1, y: 0 }); }}
+                        {...bindPress(() => onChangeDirection({ x: 1, y: 0 }))}
                         aria-label="Right"
                     >
                         ▶
@@ -42,7 +46,7 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
                     <div className="pad-spacer"></div>
                     <button
                         className={`btn pad-btn ${pk.has('down') ? 'pressed' : ''}`}
-                        onPointerDown={(e) => { e.preventDefault(); onChangeDirection({ x: 0, y: 1 }); }}
+                        {...bindPress(() => onChangeDirection({ x: 0, y: 1 }))}
                         aria-label="Down"
                     >
                         ▼
@@ -56,21 +60,21 @@ const Controls = ({ onChangeDirection, onReset, status, mode, onMenu, pressedDir
                 {onMenu && (
                     <button
                         className="btn action-btn"
-                        onPointerDown={(e) => { e.preventDefault(); onMenu(); }}
+                        {...bindPress(() => onMenu())}
                     >
                         MENU
                     </button>
                 )}
                 <button
                     className="btn action-btn"
-                    onPointerDown={(e) => { e.preventDefault(); onReset(); }}
+                    {...bindPress(() => onReset())}
                 >
                     {status === 'playing' ? (isConsole ? 'START' : (gameName === 'SONAR' ? 'PING' : 'RESTART')) : 'START'}
                 </button>
                 {isConsole && (
                     <button
                         className="btn jump-btn"
-                        onPointerDown={(e) => { e.preventDefault(); onChangeDirection({ x: 0, y: -1 }); }}
+                        {...bindPress(() => onChangeDirection({ x: 0, y: -1 }))}
                     >
                         A
                     </button>

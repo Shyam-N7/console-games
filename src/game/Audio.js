@@ -13,7 +13,7 @@ class SoundManager {
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
             this.initialized = true;
-        } catch (e) {
+        } catch {
             console.warn('Web Audio not supported');
         }
     }

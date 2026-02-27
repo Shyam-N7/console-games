@@ -1,7 +1,7 @@
-import { TILES, COLORS, SCREEN, ITEMS, STATES } from './constants.js';
+﻿import { TILES, COLORS, SCREEN, ITEMS, STATES } from './constants.js';
 import { Mario } from './Mario.js';
-import { Level, ENEMY_SPAWNS, QUESTION_CONTENTS } from './Level.js';
-import { Goomba } from './Enemies.js';
+import { Level, LEVELS } from './Level.js';
+import { Goomba, Koopa } from './Enemies.js';
 import { sounds } from './Audio.js';
 
 export class Game {
@@ -21,6 +21,7 @@ export class Game {
         this.score = 0;
         this.coins = 0;
         this.lives = 3;
+        this.currentLevelIndex = 0;
         this.time = 400;
         this.timeTimer = 0;
 
@@ -28,7 +29,7 @@ export class Game {
         this.cameraX = 0;
 
         // Create level and player
-        this.level = new Level();
+        this.level = new Level(0);
         this.mario = new Mario(48, 192);
 
         // Enemies
@@ -41,6 +42,9 @@ export class Game {
 
         // Block animations
         this.bumpingBlocks = [];
+
+        // Projectiles
+        this.fireballs = [];
 
         // Input state
         this.input = {
@@ -59,6 +63,13 @@ export class Game {
         // Timing
         this.lastTime = 0;
         this.animTimer = 0;
+        this.rafId = null;
+        this.running = false;
+
+        // Checkpoint
+        this.checkpointReached = false;
+        this.checkpointSpawnX = 48;
+        this.checkpointSpawnY = 192;
 
         // Bind methods
         this.update = this.update.bind(this);
@@ -74,27 +85,121 @@ export class Game {
 
     spawnEnemies() {
         this.enemies = [];
-        for (const spawn of ENEMY_SPAWNS) {
-            // Only spawn enemies within reasonable range
+        const spawns = this.level.levelData.spawns;
+        this.spawnedEnemyPositions = new Set();
+
+        for (let i = 0; i < spawns.length; i++) {
+            const spawn = spawns[i];
             if (spawn.x < this.cameraX + 400) {
-                const goomba = new Goomba(spawn.x, spawn.y);
-                this.enemies.push(goomba);
+                const enemy = spawn.type === 1 ? new Goomba(spawn.x, spawn.y) : new Koopa(spawn.x, spawn.y);
+                this.enemies.push(enemy);
+                this.spawnedEnemyPositions.add(`${i}`);
             }
         }
     }
 
-    reset() {
+    loadLevel(index) {
+        const safeIndex = Math.max(0, Math.min(index, LEVELS.length - 1));
+        this.currentLevelIndex = safeIndex;
         this.mario = new Mario(48, 192);
         this.cameraX = 0;
         this.enemies = [];
-        this.spawnedEnemyPositions = new Set();
         this.particles = [];
         this.floatingScores = [];
         this.bumpingBlocks = [];
-        this.level = new Level();
+        this.fireballs = [];
+        this.level = new Level(this.currentLevelIndex);
+        this.checkpointReached = false;
+        this.checkpointSpawnX = 48;
+        this.checkpointSpawnY = this.getSpawnYForTile(3);
+        this.mario.x = this.checkpointSpawnX;
+        this.mario.y = this.checkpointSpawnY;
         this.spawnEnemies();
         this.time = 400;
+        this.timeTimer = 0;
         this.state = STATES.PLAYING;
+    }
+
+    reset(fullReset = false) {
+        if (fullReset) {
+            this.score = 0;
+            this.coins = 0;
+            this.lives = 3;
+            this.currentLevelIndex = 0;
+        }
+        this.loadLevel(this.currentLevelIndex);
+    }
+
+    getSpawnYForTile(tileX) {
+        const maxX = this.level.tiles[0].length - 1;
+        const tx = Math.max(0, Math.min(maxX, tileX));
+        for (let y = this.level.tiles.length - 1; y > 0; y--) {
+            const tile = this.level.tiles[y][tx];
+            const tileAbove = this.level.tiles[y - 1][tx];
+            if (this.level.isSolid(tile) && !this.level.isSolid(tileAbove)) {
+                return y * 16 - this.mario.height;
+            }
+        }
+        return 192;
+    }
+
+    respawnAfterDeath(previousTime) {
+        const hadCheckpoint = this.checkpointReached;
+        const checkpointX = this.checkpointSpawnX;
+        const checkpointY = this.checkpointSpawnY;
+
+        this.loadLevel(this.currentLevelIndex);
+
+        if (hadCheckpoint) {
+            this.checkpointReached = true;
+            this.checkpointSpawnX = checkpointX;
+            this.checkpointSpawnY = checkpointY;
+            this.mario.x = checkpointX;
+            this.mario.y = checkpointY;
+        }
+
+        this.mario.vx = 0;
+        this.mario.vy = 0;
+        this.mario.onGround = true;
+        this.time = Math.max(200, previousTime);
+        this.timeTimer = 0;
+    }
+
+    isMarioStompingEnemy(enemy) {
+        const mario = this.mario;
+        if (mario.vy < 0) return false;
+
+        const marioBottomPrev = mario.prevY + mario.height;
+        const marioBottomNow = mario.y + mario.height;
+        const marioLeft = mario.x;
+        const marioRight = mario.x + mario.width;
+
+        const enemyTop = enemy.y;
+        const enemyBottom = enemy.y + enemy.height;
+        const enemyLeft = enemy.x;
+        const enemyRight = enemy.x + enemy.width;
+        const overlapX = Math.min(marioRight, enemyRight) - Math.max(marioLeft, enemyLeft);
+
+        const stompGrace = 12;
+        const cameFromAbove = marioBottomPrev <= enemyTop + stompGrace;
+        const crossedEnemyTop = marioBottomNow >= enemyTop - 1;
+        const inUpperHalfNow = marioBottomNow <= enemyTop + enemy.height * 0.72;
+        const enoughHorizontalOverlap = overlapX >= 5;
+
+        if (!enoughHorizontalOverlap || marioBottomNow > enemyBottom + 2) return false;
+        return (cameFromAbove && crossedEnemyTop) || inUpperHalfNow;
+    }
+
+    handleStartAction() {
+        if (this.state === STATES.TITLE || this.state === STATES.GAME_OVER) {
+            this.reset(true);
+        } else if (this.state === STATES.LEVEL_COMPLETE) {
+            if (this.currentLevelIndex < LEVELS.length - 1) {
+                this.loadLevel(this.currentLevelIndex + 1);
+            } else {
+                this.reset(true);
+            }
+        }
     }
 
     handleInput(key, pressed) {
@@ -123,6 +228,10 @@ export class Game {
             case 'w':
             case 'k': // A button - Jump
             case ' ':
+                if (pressed && this.state !== STATES.PLAYING) {
+                    this.handleStartAction();
+                    return;
+                }
                 this.input.jump = pressed;
                 this.input.jumpHeld = pressed;
                 break;
@@ -133,10 +242,17 @@ export class Game {
             case 'l': // B button - Run
             case 'shift':
                 this.input.run = pressed;
+                if (pressed) {
+                    const fireball = this.mario.throwFireball();
+                    if (fireball) {
+                        this.fireballs.push(fireball);
+                        sounds.jump(); // Recycle sound or add a fireball shoot sound
+                    }
+                }
                 break;
             case 'enter':
-                if (this.state === STATES.TITLE || this.state === STATES.GAME_OVER) {
-                    this.reset();
+                if (pressed) {
+                    this.handleStartAction();
                 }
                 break;
         }
@@ -157,14 +273,15 @@ export class Game {
         }
 
         // Spawn enemies as camera moves (only once per spawn point)
-        for (let i = 0; i < ENEMY_SPAWNS.length; i++) {
-            const spawn = ENEMY_SPAWNS[i];
+        const spawns = this.level.levelData.spawns;
+        for (let i = 0; i < spawns.length; i++) {
+            const spawn = spawns[i];
             const spawnKey = `${i}`;
 
             if (spawn.x > this.cameraX - 50 && spawn.x < this.cameraX + SCREEN.WIDTH + 100) {
                 if (!this.spawnedEnemyPositions.has(spawnKey)) {
-                    const goomba = new Goomba(spawn.x, spawn.y);
-                    this.enemies.push(goomba);
+                    const enemy = spawn.type === 1 ? new Goomba(spawn.x, spawn.y) : new Koopa(spawn.x, spawn.y);
+                    this.enemies.push(enemy);
                     this.spawnedEnemyPositions.add(spawnKey);
                 }
             }
@@ -181,12 +298,13 @@ export class Game {
 
         // Check Mario death
         if (this.mario.dead && this.mario.y > SCREEN.HEIGHT + 50) {
+            const preservedTime = this.time;
             this.lives--;
             if (this.lives <= 0) {
                 this.state = STATES.GAME_OVER;
                 sounds.gameOver();
             } else {
-                this.reset();
+                this.respawnAfterDeath(preservedTime);
             }
         }
 
@@ -200,21 +318,74 @@ export class Game {
                 continue;
             }
 
+            // Check collision with other enemies (Shells hitting things)
+            if (enemy instanceof Koopa && enemy.inShell && enemy.shellMoving && !enemy.dead) {
+                for (let j = this.enemies.length - 1; j >= 0; j--) {
+                    if (i === j) continue;
+                    const other = this.enemies[j];
+                    if (!other.dead && this.checkCollision(enemy, other)) {
+                        if (other.kick) {
+                            other.kick();
+                            this.score += 100;
+                            this.addFloatingScore(other.x, other.y, 100);
+                            sounds.stomp();
+                        }
+                    }
+                }
+            }
+
             // Check collision with Mario
             if (!enemy.dead && !this.mario.dead && !this.mario.invincible) {
                 if (this.checkCollision(this.mario, enemy)) {
-                    // Check if Mario is stomping
-                    if (this.mario.vy > 0 && this.mario.y + this.mario.height - 8 < enemy.y + 8) {
-                        enemy.stomp();
+                    if (this.isMarioStompingEnemy(enemy)) {
+                        enemy.stomp(this.mario.x);
                         this.mario.vy = -6; // Bounce
                         this.score += 100;
                         this.addFloatingScore(enemy.x, enemy.y, 100);
                         sounds.stomp();
                     } else {
-                        // Mario gets hit
-                        this.mario.shrink();
-                        sounds.bump();
+                        // If it's a Koopa shell that is stopped, running into it kicks it
+                        if (enemy instanceof Koopa && enemy.inShell && !enemy.shellMoving) {
+                            enemy.stomp(this.mario.x);
+                            sounds.stomp();
+                        } else {
+                            // Mario gets hit
+                            this.mario.shrink();
+                            sounds.bump();
+                        }
                     }
+                }
+            }
+        }
+
+        // Update fireballs
+        for (let i = this.fireballs.length - 1; i >= 0; i--) {
+            const fb = this.fireballs[i];
+            const remove = fb.update(this.level, deltaTime);
+
+            if (remove) {
+                this.fireballs.splice(i, 1);
+                continue;
+            }
+
+            // Check fireball vs enemy
+            for (let j = this.enemies.length - 1; j >= 0; j--) {
+                const enemy = this.enemies[j];
+                if (!enemy.dead && this.checkCollision(fb, enemy)) {
+                    // Instantly kill enemy with fireball
+                    if (enemy.kick) {
+                        enemy.kick(); // Fall off map
+                    } else if (enemy.stomp) {
+                        enemy.stomp();
+                        enemy.deathTimer += 500; // Force immediate disappearance for goombas
+                    }
+                    this.score += 200;
+                    this.addFloatingScore(enemy.x, enemy.y, 200);
+                    sounds.stomp(); // Plop sound
+
+                    // Kill fireball
+                    this.fireballs.splice(i, 1);
+                    break;
                 }
             }
         }
@@ -232,12 +403,43 @@ export class Game {
             this.mario.vx = 0;
         }
 
-        // Update particles
+        // Activate checkpoint once per level
+        const checkpointX = this.level.levelData.checkpointTileX * 16;
+        if (!this.checkpointReached && this.mario.x >= checkpointX) {
+            this.checkpointReached = true;
+            this.checkpointSpawnX = checkpointX;
+            this.checkpointSpawnY = this.getSpawnYForTile(this.level.levelData.checkpointTileX);
+            this.addFloatingScore(this.mario.x, this.mario.y - 12, 500);
+            this.score += 500;
+            sounds.coin();
+        }
+
+        // Update particles and items
         for (let i = this.particles.length - 1; i >= 0; i--) {
             this.particles[i].life -= deltaTime;
             this.particles[i].x += this.particles[i].vx;
             this.particles[i].y += this.particles[i].vy;
-            this.particles[i].vy += 0.3;
+
+            if (this.particles[i].type !== 'fireflower') {
+                this.particles[i].vy += 0.3; // Gravity for non-flowers
+            } else {
+                // Flowers pop up out of blocks slowly, then stop
+                if (this.particles[i].vy < 0) this.particles[i].vy += 0.1;
+                else this.particles[i].vy = 0;
+
+                // Pick up fire flower
+                if (this.checkCollision(this.mario, this.particles[i])) {
+                    if (this.mario.state !== 'fire') {
+                        if (this.mario.state === 'small') this.mario.grow();
+                        this.mario.grow(); // Grow twice to hit fire state
+                    }
+                    this.score += 1000;
+                    this.addFloatingScore(this.mario.x, this.mario.y, 1000);
+                    sounds.powerUp();
+                    this.particles.splice(i, 1);
+                    continue;
+                }
+            }
 
             if (this.particles[i].life <= 0) {
                 this.particles.splice(i, 1);
@@ -264,8 +466,8 @@ export class Game {
             }
         }
 
-        // Check for flag pole
-        if (this.mario.x >= 198 * 16) {
+        // Check for level finish
+        if (this.mario.x >= this.level.levelData.finishTileX * 16) {
             this.state = STATES.LEVEL_COMPLETE;
             sounds.levelComplete();
             this.score += this.time * 50;
@@ -279,21 +481,40 @@ export class Game {
             // Change to empty block
             this.level.tiles[tileY][tileX] = TILES.QUESTION_EMPTY;
 
-            // All blocks give coins for now
-            this.coins++;
-            this.score += 200;
-            this.addFloatingScore(tileX * 16, tileY * 16 - 16, 200);
-            sounds.coin();
+            const content = this.level.getQuestionContent(tileX * 16, tileY * 16);
 
-            // Coin animation particle
-            this.particles.push({
-                x: tileX * 16 + 4,
-                y: tileY * 16 - 8,
-                vx: 0,
-                vy: -8,
-                life: 400,
-                type: 'coin'
-            });
+            if (content === ITEMS.FIRE_FLOWER || content === ITEMS.MUSHROOM) {
+                // Spawn the powerup
+                this.score += 1000;
+                sounds.oneUp(); // using oneUp as an item appear sound
+
+                this.particles.push({
+                    x: tileX * 16,
+                    y: tileY * 16,
+                    vx: 0,
+                    vy: -2,
+                    width: 16,
+                    height: 16,
+                    life: 15000, // Stays around a while
+                    type: content === ITEMS.FIRE_FLOWER ? 'fireflower' : 'mushroom'
+                });
+            } else {
+                // All blocks give coins for now
+                this.coins++;
+                this.score += 200;
+                this.addFloatingScore(tileX * 16, tileY * 16 - 16, 200);
+                sounds.coin();
+
+                // Coin animation particle
+                this.particles.push({
+                    x: tileX * 16 + 4,
+                    y: tileY * 16 - 8,
+                    vx: 0,
+                    vy: -8,
+                    life: 400,
+                    type: 'coin'
+                });
+            }
 
             // Block bump animation
             this.bumpingBlocks.push({
@@ -390,10 +611,10 @@ export class Game {
         const lineHeight = 16;
 
         const controls = [
-            ['W / ↑', 'Jump'],
-            ['A / ←', 'Move Left'],
-            ['S / ↓', 'Duck'],
-            ['D / →', 'Move Right'],
+            ['W / UP', 'Jump'],
+            ['A / LEFT', 'Move Left'],
+            ['S / DOWN', 'Duck'],
+            ['D / RIGHT', 'Move Right'],
             ['K', 'Jump (A Button)'],
             ['L', 'Run (B Button)'],
             ['SPACE', 'Jump'],
@@ -424,7 +645,7 @@ export class Game {
 
         ctx.font = '8px monospace';
         ctx.fillStyle = '#666';
-        ctx.fillText('© 1985 NINTENDO', SCREEN.WIDTH / 2, 80);
+        ctx.fillText('COPYRIGHT 1985 NINTENDO', SCREEN.WIDTH / 2, 80);
 
         // Draw Mario
         this.drawSmallMario(SCREEN.WIDTH / 2 - 8, 100);
@@ -437,11 +658,11 @@ export class Game {
         // Controls hint
         ctx.fillStyle = COLORS.MARIO_RED;
         ctx.font = '8px monospace';
-        ctx.fillText('PRESS ENTER TO START', SCREEN.WIDTH / 2, 180);
+        ctx.fillText('PRESS START OR ENTER', SCREEN.WIDTH / 2, 180);
 
         ctx.fillStyle = '#888';
         ctx.font = '7px monospace';
-        ctx.fillText('WASD/Arrows = Move  K = Jump  L = Run', SCREEN.WIDTH / 2, 210);
+        ctx.fillText('WASD/ARROWS = MOVE  K = JUMP  L = RUN', SCREEN.WIDTH / 2, 210);
         ctx.fillText('C = Show Controls  M = Menu', SCREEN.WIDTH / 2, 222);
     }
 
@@ -458,7 +679,7 @@ export class Game {
 
         ctx.font = '10px monospace';
         ctx.fillText(`SCORE: ${this.score}`, SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 + 30);
-        ctx.fillText('PRESS ENTER', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 + 60);
+        ctx.fillText('PRESS START OR ENTER', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 + 60);
     }
 
     renderLevelComplete() {
@@ -474,7 +695,17 @@ export class Game {
         ctx.fillStyle = '#fff';
         ctx.font = '16px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('LEVEL COMPLETE!', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 - 20);
+
+        if (this.currentLevelIndex >= LEVELS.length - 1) {
+            ctx.fillText('YOU SAVED THE PRINCESS!', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 - 20);
+            ctx.font = '10px monospace';
+            ctx.fillText('PRESS START OR ENTER TO RESTART', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 + 40);
+        } else {
+            ctx.fillText('LEVEL COMPLETE!', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 - 20);
+            ctx.font = '10px monospace';
+            ctx.fillText('PRESS START OR ENTER FOR NEXT LEVEL', SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 + 40);
+        }
+
         ctx.font = '12px monospace';
         ctx.fillText(`SCORE: ${this.score}`, SCREEN.WIDTH / 2, SCREEN.HEIGHT / 2 + 20);
     }
@@ -482,8 +713,16 @@ export class Game {
     renderGame() {
         const ctx = this.ctx;
 
-        // Render decorative background (hills, clouds, bushes)
-        this.renderBackground();
+        // Background color
+        if (this.level.levelData.bgType === 'underground') {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, SCREEN.WIDTH, SCREEN.HEIGHT);
+        } else {
+            // Overworld sky
+            ctx.fillStyle = COLORS.SKY;
+            ctx.fillRect(0, 0, SCREEN.WIDTH, SCREEN.HEIGHT);
+            this.renderBackgroundScenery();
+        }
 
         // Render level tiles
         this.renderLevel();
@@ -496,6 +735,11 @@ export class Game {
         // Render Mario
         this.mario.render(ctx, this.cameraX);
 
+        // Render fireballs
+        for (const fb of this.fireballs) {
+            fb.render(ctx, this.cameraX);
+        }
+
         // Render particles
         this.renderParticles();
 
@@ -506,7 +750,7 @@ export class Game {
         this.renderHUD();
     }
 
-    renderBackground() {
+    renderBackgroundScenery() {
         const ctx = this.ctx;
 
         // Draw hills
@@ -541,7 +785,7 @@ export class Game {
 
     drawHill(ctx, x, y, width, height) {
         ctx.beginPath();
-        ctx.arc(x + width / 2, y, width / 2, Math.PI, 0);
+        ctx.ellipse(x + width / 2, y, width / 2, height, 0, Math.PI, 0);
         ctx.fill();
     }
 
@@ -720,6 +964,14 @@ export class Game {
                 // Brick debris
                 ctx.fillStyle = COLORS.BRICK;
                 ctx.fillRect(screenX, p.y, 6, 6);
+            } else if (p.type === 'fireflower') {
+                // Fire flower item
+                ctx.fillStyle = '#f8b800'; // Orange petals
+                ctx.fillRect(screenX + 2, p.y + 2, 12, 12);
+                ctx.fillStyle = '#f83800'; // Red center
+                ctx.fillRect(screenX + 4, p.y + 4, 8, 8);
+                ctx.fillStyle = '#00a800'; // Stem
+                ctx.fillRect(screenX + 6, p.y + 12, 4, 4);
             }
         }
     }
@@ -749,12 +1001,12 @@ export class Game {
         ctx.fillText(this.score.toString().padStart(6, '0'), 24, 24);
 
         // Coins
-        ctx.fillText(`×${this.coins.toString().padStart(2, '0')}`, 100, 24);
+        ctx.fillText(`x${this.coins.toString().padStart(2, '0')}`, 100, 24);
 
         // World
         ctx.textAlign = 'center';
         ctx.fillText('WORLD', 160, 16);
-        ctx.fillText('1-1', 160, 24);
+        ctx.fillText(this.level.levelData.name || '1-1', 160, 24);
 
         // Time
         ctx.textAlign = 'right';
@@ -777,17 +1029,32 @@ export class Game {
     }
 
     gameLoop(timestamp) {
+        if (!this.running) return;
+
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
         this.update(Math.min(deltaTime, 32)); // Cap delta to prevent huge jumps
         this.render();
 
-        requestAnimationFrame(this.gameLoop);
+        this.rafId = requestAnimationFrame(this.gameLoop);
     }
 
     start() {
+        if (this.running) return;
+
+        this.running = true;
         this.init();
-        requestAnimationFrame(this.gameLoop);
+        this.lastTime = 0;
+        this.rafId = requestAnimationFrame(this.gameLoop);
+    }
+
+    stop() {
+        this.running = false;
+        if (this.rafId !== null) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
     }
 }
+

@@ -34,7 +34,7 @@ export const useSpaceImpact = () => {
     const [status, setStatus] = useState('ready');
     const [weapon, setWeapon] = useState(1);
     const [shield, setShield] = useState(false);
-    const [shieldTimer, setShieldTimer] = useState(0);
+    const [, setShieldTimer] = useState(0);
     const [distance, setDistance] = useState(0);
 
     // Input and timing refs

@@ -1,21 +1,21 @@
 // Authentic NES Super Mario Bros Physics Constants
 export const PHYSICS = {
-    // Gravity (NES authentic)
-    GRAVITY: 0.4,
+    // Hybrid arcade tuning: responsive but still retro
+    GRAVITY: 0.55,
 
     // Walking
-    WALK_ACCEL: 0.15,
-    WALK_DECEL: 0.1,
-    MAX_WALK_SPEED: 2.5,
+    WALK_ACCEL: 0.16,
+    WALK_DECEL: 0.24,
+    MAX_WALK_SPEED: 2.6,
 
     // Running
-    RUN_ACCEL: 0.2,
-    MAX_RUN_SPEED: 4.0,
+    RUN_ACCEL: 0.24,
+    MAX_RUN_SPEED: 4.4,
 
     // Jumping (variable height based on button hold)
-    JUMP_VELOCITY: -7.5,
-    JUMP_BOOST: -0.25, // Additional boost while holding jump
-    MAX_FALL_SPEED: 8,
+    JUMP_VELOCITY: -8.6,
+    JUMP_BOOST: -0.12,
+    MAX_FALL_SPEED: 9.0,
 
     // Mario size
     SMALL_HEIGHT: 16,

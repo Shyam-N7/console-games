@@ -24,6 +24,14 @@ export const useQuantumSnake = () => {
     const gameLoopRef = useRef(null);
     const lastProcessedDir = useRef(INITIAL_DIR_A); // To prevent 180 reverses
 
+    const addScore = useCallback((points) => {
+        setScore(prevScore => {
+            const nextScore = prevScore + points;
+            setHighScore(prevHigh => Math.max(prevHigh, nextScore));
+            return nextScore;
+        });
+    }, []);
+
     const generateFood = useCallback((snkA, snkB, otherFood) => {
         let newFood;
         let collision;
@@ -136,7 +144,7 @@ export const useQuantumSnake = () => {
         // Check A eating Food A
         if (newHeadA.x === foodA.x && newHeadA.y === foodA.y) {
             playSound('eat');
-            setScore(s => s + 10);
+            addScore(10);
             setFoodA(generateFood(newSnakeA, newSnakeB, foodB));
             foodEaten = true;
         } else {
@@ -146,7 +154,7 @@ export const useQuantumSnake = () => {
         // Check B eating Food B
         if (newHeadB.x === foodB.x && newHeadB.y === foodB.y) {
             playSound('eat');
-            setScore(s => s + 10);
+            addScore(10);
             setFoodB(generateFood(newSnakeA, newSnakeB, foodA));
             foodEaten = true;
         } else {
@@ -162,7 +170,7 @@ export const useQuantumSnake = () => {
             speedRef.current = Math.max(80, speedRef.current * 0.99);
         }
 
-    }, [snakeA, snakeB, foodA, foodB, status, generateFood, playSound]);
+    }, [snakeA, snakeB, foodA, foodB, status, generateFood, playSound, addScore]);
 
     // Game Loop
     useEffect(() => {
@@ -173,11 +181,6 @@ export const useQuantumSnake = () => {
         }
         return () => clearInterval(gameLoopRef.current);
     }, [status, moveSnake]);
-
-    // High Score
-    useEffect(() => {
-        if (score > highScore) setHighScore(score);
-    }, [score, highScore]);
 
     return {
         snakeA,

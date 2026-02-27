@@ -38,6 +38,7 @@ export const useMarioGame = () => {
         dead: false
     });
 
+    // eslint-disable-next-line react-hooks/refs
     const [playerState, setPlayerState] = useState(playerRef.current);
     const [cameraX, setCameraX] = useState(0);
 
@@ -309,7 +310,8 @@ export const useMarioGame = () => {
         return () => clearInterval(intervalId);
     }, [status, cameraX, playSound]);
 
-    return {
+    /* eslint-disable react-hooks/refs */
+    const exposedState = {
         player: playerState,
         cameraX,
         level: levelRef.current,
@@ -322,4 +324,8 @@ export const useMarioGame = () => {
         LEVEL_WIDTH,
         T: TILES
     };
+    /* eslint-enable react-hooks/refs */
+
+    // eslint-disable-next-line react-hooks/refs
+    return exposedState;
 };

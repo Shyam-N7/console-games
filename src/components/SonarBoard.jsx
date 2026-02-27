@@ -15,11 +15,7 @@ const SonarBoard = ({ player, energy, status, pings, grid, hasKey, currentLevel,
         ctx.fillStyle = '#1a1a1a'; // Almost black, darker than Nokia bg
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        const pixelColor = '#43523d'; // Nokia green
-
         // 1. Draw Pings (Ripples)
-        const lightColor = '#c7f0d8'; // Light Green for contrast on dark bg
-
         pings.forEach(ping => {
             ctx.beginPath();
             // Calculate pixel position

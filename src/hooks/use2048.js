@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useAudio } from './useAudio';
 
 const GRID_SIZE = 4;
@@ -115,8 +115,6 @@ export const use2048 = () => {
 
             const rotateLeft = (g) => rotateGrid(rotateGrid(rotateGrid(g))); // 270 deg
             const rotateRight = (g) => rotateGrid(g); // 90 deg
-            const rotateFlip = (g) => rotateGrid(rotateGrid(g)); // 180 deg
-
             // Align everything to "Left" for processing
             let processedGrid;
 
@@ -145,7 +143,11 @@ export const use2048 = () => {
 
             if (moved) {
                 if (scoreGain > 0) {
-                    setScore(s => s + scoreGain);
+                    setScore(prevScore => {
+                        const nextScore = prevScore + scoreGain;
+                        setBestScore(prevBest => Math.max(prevBest, nextScore));
+                        return nextScore;
+                    });
                     playSound('merge');
                 } else {
                     playSound('slide');
@@ -165,13 +167,6 @@ export const use2048 = () => {
             return prevGrid;
         });
     }, [status, addRandomTile, checkGameOver, playSound]);
-
-    // Update Best Score
-    useEffect(() => {
-        if (score > bestScore) {
-            setBestScore(score);
-        }
-    }, [score, bestScore]);
 
     return {
         grid,
