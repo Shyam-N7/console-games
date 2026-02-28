@@ -108,6 +108,16 @@ export const useAudio = () => {
                 playTone(900, 'square', 0.05);
                 setTimeout(() => playTone(1200, 'square', 0.1), 50);
                 break;
+            case 'score': // Pacman pellet — alternating waka tones
+                playTone(523, 'square', 0.06);
+                setTimeout(() => playTone(440, 'square', 0.06), 70);
+                break;
+            case 'powerup': // Pacman power pellet / ghost eaten
+                playTone(523, 'square', 0.08);
+                setTimeout(() => playTone(659, 'square', 0.08), 90);
+                setTimeout(() => playTone(784, 'square', 0.08), 180);
+                setTimeout(() => playTone(1047, 'square', 0.15), 270);
+                break;
             default:
                 break;
         }

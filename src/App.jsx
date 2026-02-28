@@ -407,7 +407,7 @@ function App() {
   };
 
   // Adjust container class for Pacman tablet mode
-  const isTabletMode = activeGame === 'pacman';
+  const isTabletMode = false;
 
   return (
     <div className={`phone ${isTabletMode ? 'tablet-mode' : ''}`}>

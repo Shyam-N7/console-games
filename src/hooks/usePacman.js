@@ -99,10 +99,10 @@ export const usePacman = () => {
         grid: deepCopyMaze(),
         pacman: { x: 12, y: 16 },
         ghosts: [
-            { id: 'blinky', x: 12, y: 8, type: 'chaser', dir: { x: 0, y: 0 } },
-            { id: 'pinky', x: 11, y: 10, type: 'ambusher', dir: { x: 0, y: 0 } },
-            { id: 'inky', x: 12, y: 10, type: 'flanker', dir: { x: 0, y: 0 } },
-            { id: 'clyde', x: 13, y: 10, type: 'scatter', dir: { x: 0, y: 0 } }
+            { id: 'blinky', x: 12, y: 8,  type: 'chaser',   dir: { x: 0, y: 0 }, releaseAt: 0  },
+            { id: 'pinky',  x: 11, y: 10, type: 'ambusher',  dir: { x: 0, y: 0 }, releaseAt: 30 },
+            { id: 'inky',   x: 12, y: 10, type: 'flanker',   dir: { x: 0, y: 0 }, releaseAt: 60 },
+            { id: 'clyde',  x: 13, y: 10, type: 'scatter',   dir: { x: 0, y: 0 }, releaseAt: 90 },
         ],
         dir: { x: 0, y: 0 },
         nextDir: { x: 0, y: 0 },
@@ -131,14 +131,17 @@ export const usePacman = () => {
         // ---- Move Pacman ----
         const oldPx = g.pacman.x;
         const oldPy = g.pacman.y;
+        g.pacman.wrapped = false;
 
         // Try queued direction first, fallback to current
         let moved = false;
         for (const tryDir of [g.nextDir, g.dir]) {
             if (tryDir.x === 0 && tryDir.y === 0) continue;
-            const tx = wrapX(g.pacman.x + tryDir.x);
+            const rawX = g.pacman.x + tryDir.x;
+            const tx = wrapX(rawX);
             const ty = g.pacman.y + tryDir.y;
             if (canMove(g.grid, tx, ty)) {
+                g.pacman.wrapped = rawX !== tx;
                 g.pacman.x = tx;
                 g.pacman.y = ty;
                 g.dir = tryDir;
@@ -169,6 +172,9 @@ export const usePacman = () => {
         const oldGhostPos = g.ghosts.map(gh => ({ x: gh.x, y: gh.y }));
 
         for (const ghost of g.ghosts) {
+            // Stagger ghost release from box
+            if (g.tick < ghost.releaseAt) continue;
+
             // In the spawn box? Move straight up to exit
             const inBox = ghost.y >= 9 && ghost.y <= 10 && ghost.x >= 11 && ghost.x <= 13;
             if (inBox) {
@@ -204,9 +210,14 @@ export const usePacman = () => {
 
             const move = pickGhostMove(ghost, g.grid, target || { x: ghost.x, y: ghost.y }, g.frightenedTicks);
             if (move) {
-                ghost.x = wrapX(ghost.x + move.x);
+                const rawX = ghost.x + move.x;
+                const newX = wrapX(rawX);
+                ghost.wrapped = rawX !== newX;
+                ghost.x = newX;
                 ghost.y = ghost.y + move.y;
                 ghost.dir = move;
+            } else {
+                ghost.wrapped = false;
             }
         }
 
@@ -220,12 +231,17 @@ export const usePacman = () => {
             const sameNow = gh.x === g.pacman.x && gh.y === g.pacman.y;
             // Swap collision (Pacman walked into ghost's old tile AND ghost walked into Pacman's old tile)
             const swapped = gh.x === oldPx && gh.y === oldPy && g.pacman.x === oldGh.x && g.pacman.y === oldGh.y;
+            // Ghost stepped into tile Pacman just vacated (fixes ghost "escorting" bug)
+            const trailHit = g.frightenedTicks === 0 && gh.x === oldPx && gh.y === oldPy && !swapped;
+            // Pacman walked into tile ghost just vacated (fixes "can't find ghost" bug)
+            const pacmanFoundGhost = g.frightenedTicks === 0 && g.pacman.x === oldGh.x && g.pacman.y === oldGh.y;
 
-            if (sameNow || swapped) {
+            if (sameNow || swapped || trailHit || pacmanFoundGhost) {
                 if (g.frightenedTicks > 0) {
                     playSound('powerup');
                     g.score += 200;
                     gh.x = 12; gh.y = 10; gh.dir = { x: 0, y: -1 };
+                    gh.releaseAt = g.tick + 20;
                 } else {
                     died = true;
                 }
@@ -254,13 +270,23 @@ export const usePacman = () => {
         forceRender();
     }, [playSound, forceRender]);
 
-    // ---- Game Loop Effect ----
+    // ---- Game Loop Effect (rAF for accurate 60fps-aligned timing) ----
     useEffect(() => {
         const g = gs.current;
         if (g.status !== 'playing' || !g.hasStarted) return;
-        const id = setInterval(step, TICK_MS);
-        return () => clearInterval(id);
-    }, [step, renderTick]); // renderTick dep ensures restart after state changes
+        let rafId;
+        let last = performance.now();
+        const loop = () => {
+            const now = performance.now();
+            if (now - last >= TICK_MS) {
+                last = now;
+                step();
+            }
+            rafId = requestAnimationFrame(loop);
+        };
+        rafId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(rafId);
+    }, [step, renderTick]);
 
     // ---- Public API ----
     const changeDirection = useCallback((dir) => {
@@ -280,10 +306,10 @@ export const usePacman = () => {
         g.grid = deepCopyMaze();
         g.pacman = { x: 12, y: 16 };
         g.ghosts = [
-            { id: 'blinky', x: 12, y: 8, type: 'chaser', dir: { x: 0, y: 0 } },
-            { id: 'pinky', x: 11, y: 10, type: 'ambusher', dir: { x: 0, y: 0 } },
-            { id: 'inky', x: 12, y: 10, type: 'flanker', dir: { x: 0, y: 0 } },
-            { id: 'clyde', x: 13, y: 10, type: 'scatter', dir: { x: 0, y: 0 } }
+            { id: 'blinky', x: 12, y: 8,  type: 'chaser',   dir: { x: 0, y: 0 }, releaseAt: 0  },
+            { id: 'pinky',  x: 11, y: 10, type: 'ambusher',  dir: { x: 0, y: 0 }, releaseAt: 30 },
+            { id: 'inky',   x: 12, y: 10, type: 'flanker',   dir: { x: 0, y: 0 }, releaseAt: 60 },
+            { id: 'clyde',  x: 13, y: 10, type: 'scatter',   dir: { x: 0, y: 0 }, releaseAt: 90 },
         ];
         g.dir = { x: 0, y: 0 };
         g.nextDir = { x: 0, y: 0 };

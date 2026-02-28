@@ -39,7 +39,8 @@ const PacmanBoard = ({
                         left: `${(pacman.x / GRID_WIDTH) * 100}%`,
                         top: `${(pacman.y / GRID_HEIGHT) * 100}%`,
                         width: `${100 / GRID_WIDTH}%`,
-                        height: `${100 / GRID_HEIGHT}%`
+                        height: `${100 / GRID_HEIGHT}%`,
+                        transition: pacman.wrapped ? 'none' : 'left 0.15s linear, top 0.15s linear'
                     }}
                 >
                 </div>
@@ -53,7 +54,8 @@ const PacmanBoard = ({
                             left: `${(g.x / GRID_WIDTH) * 100}%`,
                             top: `${(g.y / GRID_HEIGHT) * 100}%`,
                             width: `${100 / GRID_WIDTH}%`,
-                            height: `${100 / GRID_HEIGHT}%`
+                            height: `${100 / GRID_HEIGHT}%`,
+                            transition: g.wrapped ? 'none' : 'left 0.15s linear, top 0.15s linear'
                         }}
                     >
                     </div>

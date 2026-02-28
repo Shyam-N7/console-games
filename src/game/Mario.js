@@ -132,6 +132,12 @@ export class Mario {
         // Apply vertical movement with collision
         this.moveY(level);
 
+        if (this.y < 0) {
+            this.y = 0;
+            if (this.vy < 0) this.vy = 0;
+            this.jumping = false;
+        }
+
         // Update animation
         this.updateAnimation(deltaTime);
 
